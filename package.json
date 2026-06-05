@@ -1,0 +1,58 @@
+{
+  "name": "modrinth-cli",
+  "version": "0.1.0",
+  "description": "Modrinth for agents, scripts, and terminal-native Minecraft workflows.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Thereallo1026",
+  "homepage": "https://github.com/Thereallo1026/modrinth-cli",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Thereallo1026/modrinth-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Thereallo1026/modrinth-cli/issues"
+  },
+  "keywords": [
+    "modrinth",
+    "minecraft",
+    "cli",
+    "mods",
+    "modpacks",
+    "shaders",
+    "resourcepacks"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "modrinth": "./dist/modrinth.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "bun run src/bin.ts",
+    "build": "bun build src/bin.ts --target=node --outfile=dist/modrinth.js",
+    "pack": "bun run build && bun pm pack",
+    "tsc": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "ultracite check",
+    "fix": "ultracite fix",
+    "prepublishOnly": "bun run build"
+  },
+  "dependencies": {
+    "@modrinth/api-client": "0.13.0",
+    "commander": "^15.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.15",
+    "@types/bun": "latest",
+    "typescript": "6.0.3",
+    "ultracite": "7.8.1",
+    "vitest": "^4.1.8"
+  }
+}

@@ -1,0 +1,134 @@
+name: Publish Package
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'package.json'
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version-changed: ${{ steps.check.outputs.changed }}
+      version: ${{ steps.get-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Check if version changed
+        id: check
+        run: |
+          CHANGED=$(git diff HEAD^ HEAD -- package.json | grep '"version"' || echo "")
+          if [ -n "$CHANGED" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Get version
+        id: get-version
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: check-version
+    if: needs.check-version.outputs.version-changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      # Trusted publishing (OIDC) requires npm >= 11.5.1.
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type check
+        run: bun run tsc
+
+      - name: Test
+        run: bun run test
+
+      - name: Build package
+        run: bun run build
+
+      # No NODE_AUTH_TOKEN: npm authenticates via OIDC and attaches provenance.
+      - name: Publish to npm
+        run: npm publish --access public
+
+      - name: Create Git tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v${{ needs.check-version.outputs.version }}"
+          git push origin "v${{ needs.check-version.outputs.version }}"
+
+      - name: Get previous tag
+        id: previoustag
+        run: |
+          PREV_TAG=$(git tag --sort=-version:refname | grep -v "v${{ needs.check-version.outputs.version }}" | head -n 1)
+          echo "tag=$PREV_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          if [ -n "${{ steps.previoustag.outputs.tag }}" ]; then
+            CHANGELOG=$(git log "${{ steps.previoustag.outputs.tag }}..HEAD^" --pretty=format:"- %s (%h)" --no-merges)
+          else
+            CHANGELOG=$(git log HEAD^ --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          {
+            echo "changelog<<EOF"
+            echo "$CHANGELOG"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.6.1
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: Release v${{ needs.check-version.outputs.version }}
+          body: |
+            ## modrinth-cli v${{ needs.check-version.outputs.version }}
+
+            ### Installation
+            ```bash
+            npm install -g modrinth-cli@${{ needs.check-version.outputs.version }}
+            # or run without installing
+            npx modrinth-cli@${{ needs.check-version.outputs.version }} search sodium
+            ```
+
+            ### Changes
+            ${{ steps.changelog.outputs.changelog }}
+
+            ### Documentation
+            - [npm Package](https://www.npmjs.com/package/modrinth-cli)
+            - [GitHub Repository](https://github.com/Thereallo1026/modrinth-cli)
+
+            ---
+            **Full Changelog**: https://github.com/Thereallo1026/modrinth-cli/compare/${{ steps.previoustag.outputs.tag }}...v${{ needs.check-version.outputs.version }}
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
