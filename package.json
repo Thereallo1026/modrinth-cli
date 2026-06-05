@@ -1,6 +1,6 @@
 {
   "name": "modrinth-cli",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Modrinth for agents, scripts, and terminal-native Minecraft workflows.",
   "type": "module",
   "license": "MIT",
@@ -44,7 +44,7 @@
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
-    "@modrinth/api-client": "0.13.0",
+    "@modrinth/api-client": "0.14.0",
     "commander": "^15.0.0",
     "zod": "^4.4.3"
   },
