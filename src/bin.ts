@@ -15,7 +15,7 @@ program
   .description(
     "Modrinth for agents, scripts, and terminal-native Minecraft workflows."
   )
-  .version(version, "-V, --cli-version", "output the CLI version");
+  .version(version, "-V, --version", "output the CLI version");
 
 program.hook("preAction", async (_command, actionCommand) => {
   if (actionCommand.opts().json) {
