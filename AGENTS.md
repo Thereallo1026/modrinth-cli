@@ -32,6 +32,8 @@ This repository contains a CLI project for Modrinth. Treat it as production code
 ## Function Design
 
 - Never write helper functions that only serve one purpose.
+- Prefer human names for functions. Use verbs and plain domain language like `download`, `search`, `resolve`, `versionsFor`, `pickDownload`, `printJson`, and `showError`.
+- Avoid stiff implementation names like `downloadFile`, `formatProjectView`, `findDownloadTarget`, or `renderError` when a shorter domain name is clear.
 - Prefer named domain functions that model durable concepts: project resolution, version selection, file download, JSON output, and CLI error handling.
 - Keep one-off logic inside the command that owns it.
 - Extract shared logic after a second real use appears.

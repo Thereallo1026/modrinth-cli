@@ -1,15 +1,18 @@
 import type { Command } from "commander";
 import { z } from "zod";
-import { downloadFile } from "@/lib/download-file";
-import { resolveOutputPath } from "@/lib/paths";
-import { findDownloadTarget } from "@/modrinth/versions";
-import { renderError, writeJson } from "@/output/json";
+import { download } from "@/lib/download-file";
+import { destinationFor } from "@/lib/paths";
+import { attributionFor, resolve } from "@/modrinth/projects";
+import { pickDownload } from "@/modrinth/versions";
+import { printJson, showError } from "@/output/json";
+import { downloadCard, downloadResult, progressBar } from "@/output/terminal";
 
 const downloadOptionsSchema = z.object({
   json: z.boolean().default(false),
   loader: z.string().optional(),
   output: z.string().default("."),
   release: z.string().optional(),
+  type: z.enum(["release", "beta", "alpha"]).optional(),
   version: z.string().optional(),
 });
 
@@ -25,6 +28,7 @@ export function registerDownloadCommand(program: Command) {
       "--release <release>",
       "Exact Modrinth version ID, number, or name."
     )
+    .option("--type <type>", "Build type: release, beta, or alpha.")
     .option(
       "--loader <loader>",
       "Mod loader, such as fabric, forge, quilt, or neoforge."
@@ -35,20 +39,54 @@ export function registerDownloadCommand(program: Command) {
       const parsedOptions = downloadOptionsSchema.parse(options);
 
       try {
-        const target = await findDownloadTarget({
+        const target = await pickDownload({
           project,
           gameVersion: parsedOptions.version,
           loader: parsedOptions.loader,
           modVersion: parsedOptions.release,
+          type: parsedOptions.type,
         });
-        const outputPath = resolveOutputPath(
+        const outputPath = destinationFor(
           parsedOptions.output,
           target.file.filename
         );
-        const downloaded = await downloadFile({
+        const resolved = parsedOptions.json
+          ? undefined
+          : await resolve(target.project.id);
+        const attribution = resolved
+          ? await attributionFor(resolved.project)
+          : undefined;
+
+        if (!(parsedOptions.json || !resolved || !attribution)) {
+          process.stdout.write(
+            downloadCard(
+              resolved.project,
+              attribution,
+              target.version.game_versions
+            )
+          );
+        }
+
+        let lastPercent: number | undefined;
+
+        if (!parsedOptions.json) {
+          process.stdout.write(`\r${progressBar(0)}`);
+        }
+
+        const downloaded = await download({
           url: target.file.url,
           outputPath,
           expectedSha512: target.file.hashes.sha512,
+          onProgress: parsedOptions.json
+            ? undefined
+            : ({ percent }) => {
+                if (percent === lastPercent) {
+                  return;
+                }
+
+                lastPercent = percent;
+                process.stdout.write(`\r${progressBar(percent)}`);
+              },
         });
         const result = {
           project: target.project,
@@ -60,13 +98,17 @@ export function registerDownloadCommand(program: Command) {
         };
 
         if (parsedOptions.json) {
-          writeJson(result);
+          printJson(result);
           return;
         }
 
-        process.stdout.write(`${downloaded.path}\n`);
+        if (lastPercent !== 100) {
+          process.stdout.write(`\r${progressBar(100)}`);
+        }
+
+        process.stdout.write(`\n${downloadResult(downloaded.path)}`);
       } catch (error) {
-        renderError(error, parsedOptions.json);
+        showError(error, parsedOptions.json);
       }
     });
 }

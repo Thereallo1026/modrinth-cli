@@ -6,13 +6,20 @@ import { pipeline } from "node:stream/promises";
 import { USER_AGENT } from "@/modrinth/client";
 import { CliError } from "./errors";
 
-interface DownloadFileInput {
+interface DownloadInput {
   expectedSha512?: string;
+  onProgress?: (progress: DownloadProgress) => void;
   outputPath: string;
   url: string;
 }
 
-export async function downloadFile(input: DownloadFileInput) {
+interface DownloadProgress {
+  bytes: number;
+  percent?: number;
+  totalBytes?: number;
+}
+
+export async function download(input: DownloadInput) {
   const response = await fetch(input.url, {
     headers: {
       "User-Agent": USER_AGENT,
@@ -33,10 +40,20 @@ export async function downloadFile(input: DownloadFileInput) {
   const tempPath = `${input.outputPath}.tmp`;
   const hash = createHash("sha512");
   let bytes = 0;
+  const contentLength = response.headers.get("content-length");
+  const totalBytes = contentLength ? Number(contentLength) : undefined;
   const verifier = new Transform({
     transform(chunk: Buffer, _encoding, callback) {
       bytes += chunk.byteLength;
       hash.update(chunk);
+      input.onProgress?.({
+        bytes,
+        percent:
+          totalBytes && Number.isFinite(totalBytes)
+            ? Math.min(100, Math.round((bytes / totalBytes) * 100))
+            : undefined,
+        totalBytes,
+      });
       callback(null, chunk);
     },
   });

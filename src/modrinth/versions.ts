@@ -1,52 +1,66 @@
 import type { Labrinth } from "@modrinth/api-client";
 import { CliError } from "@/lib/errors";
 import { modrinthClient } from "./client";
-import { type Project, resolveProject } from "./projects";
+import { type Project, resolve } from "./projects";
 
 interface FindDownloadTargetInput {
   gameVersion?: string;
   loader?: string;
   modVersion?: string;
   project: string;
+  type?: Labrinth.Versions.v2.VersionType;
 }
 
 interface ListProjectVersionsInput {
   gameVersion?: string;
+  limit?: number;
   loader?: string;
+  offset?: number;
   project: string;
+  type?: Labrinth.Versions.v2.VersionType;
 }
 
-export async function listProjectVersions(input: ListProjectVersionsInput) {
-  const resolved = await resolveProject(input.project);
+export async function versionsFor(input: ListProjectVersionsInput) {
+  const resolved = await resolve(input.project);
+  const limit = input.limit ?? 10;
+  const offset = input.offset ?? 0;
+  const apiLimit = input.type ? 100 : limit;
+  const apiOffset = input.type ? 0 : input.offset;
   const versions = await modrinthClient.labrinth.versions_v2.getProjectVersions(
     resolved.project.id,
     {
       game_versions: input.gameVersion ? [input.gameVersion] : undefined,
       loaders: input.loader ? [input.loader] : undefined,
       include_changelog: false,
-      limit: 100,
+      limit: apiLimit,
+      offset: apiOffset,
     }
   );
+  const visibleVersions = input.type
+    ? versions
+        .filter((version) => version.version_type === input.type)
+        .slice(offset, offset + limit)
+    : versions;
 
   return {
-    project: summarizeProject(resolved.project),
-    versions,
+    project: projectSummary(resolved.project),
+    versions: visibleVersions,
   };
 }
 
-export async function findDownloadTarget(input: FindDownloadTargetInput) {
-  const listed = await listProjectVersions(input);
-  const version = selectVersion(listed.versions, input.modVersion);
-  const file = selectVersionFile(version);
+export async function pickDownload(input: FindDownloadTargetInput) {
+  const listed = await versionsFor(input);
+  const version = chooseVersion(listed.versions, input.modVersion);
+  const file = chooseFile(version);
 
   return {
     project: listed.project,
-    version: summarizeVersion(version),
+    version: versionSummary(version),
     file,
   };
 }
 
-function selectVersion(
+function chooseVersion(
   versions: Labrinth.Versions.v2.Version[],
   modVersion?: string
 ) {
@@ -87,7 +101,7 @@ function selectVersion(
 
 export type Version = Labrinth.Versions.v2.Version;
 
-function selectVersionFile(version: Labrinth.Versions.v2.Version) {
+function chooseFile(version: Labrinth.Versions.v2.Version) {
   const file =
     version.files.find((candidate) => candidate.primary) ?? version.files[0];
 
@@ -104,16 +118,17 @@ function selectVersionFile(version: Labrinth.Versions.v2.Version) {
   return file;
 }
 
-function summarizeProject(project: Project) {
+function projectSummary(project: Project) {
   return {
+    description: project.description,
     id: project.id,
+    project_type: project.project_type,
     slug: project.slug,
     title: project.title,
-    project_type: project.project_type,
   };
 }
 
-function summarizeVersion(version: Labrinth.Versions.v2.Version) {
+function versionSummary(version: Labrinth.Versions.v2.Version) {
   return {
     id: version.id,
     name: version.name,

@@ -6,24 +6,26 @@ interface SearchProjectsInput {
   gameVersion?: string;
   limit?: number;
   loader?: string;
+  offset?: number;
   projectType?: string;
   query: string;
 }
 
-export function searchProjects(input: SearchProjectsInput) {
+export function search(input: SearchProjectsInput) {
   return modrinthClient.labrinth.projects_v2.search({
     query: input.query,
-    facets: buildSearchFacets(input),
+    facets: facetsFor(input),
     limit: input.limit ?? 10,
+    offset: input.offset,
   });
 }
 
-export function getProjectMembers(project: string) {
+export function members(project: string) {
   return modrinthClient.labrinth.projects_v3.getMembers(project);
 }
 
-export async function getProjectAttribution(project: Project) {
-  const results = await searchProjects({
+export async function attributionFor(project: Project) {
+  const results = await search({
     query: project.slug,
     limit: 10,
   });
@@ -42,7 +44,7 @@ export async function getProjectAttribution(project: Project) {
   return hit.author;
 }
 
-export async function resolveProject(project: string) {
+export async function resolve(project: string) {
   try {
     const directProject =
       await modrinthClient.labrinth.projects_v2.get(project);
@@ -53,7 +55,7 @@ export async function resolveProject(project: string) {
       candidates: [],
     };
   } catch {
-    const results = await searchProjects({
+    const results = await search({
       query: project,
       projectType: "mod",
       limit: 5,
@@ -82,7 +84,7 @@ export async function resolveProject(project: string) {
   }
 }
 
-function buildSearchFacets(input: SearchProjectsInput) {
+function facetsFor(input: SearchProjectsInput) {
   const facets: string[][] = [];
 
   if (input.projectType) {

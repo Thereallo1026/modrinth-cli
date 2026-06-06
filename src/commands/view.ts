@@ -1,13 +1,17 @@
 import type { Command } from "commander";
 import { z } from "zod";
-import { getProjectAttribution, resolveProject } from "@/modrinth/projects";
-import { listProjectVersions } from "@/modrinth/versions";
-import { renderError, writeJson } from "@/output/json";
-import { formatProjectView, formatVersionTable } from "@/output/terminal";
+import { offsetFor, pageOptions } from "@/lib/page";
+import { attributionFor, resolve } from "@/modrinth/projects";
+import { versionsFor } from "@/modrinth/versions";
+import { printJson, showError } from "@/output/json";
+import { projectCard, versionTable } from "@/output/terminal";
 
 const viewOptionsSchema = z.object({
   json: z.boolean().default(false),
+  limit: pageOptions.limit,
   loader: z.string().optional(),
+  page: pageOptions.page,
+  type: z.enum(["release", "beta", "alpha"]).optional(),
   version: z.string().optional(),
 });
 
@@ -18,40 +22,42 @@ export function registerViewCommand(program: Command) {
     .argument("<project>", "Project slug, project ID, or search name.")
     .option("--version <version>", "Minecraft game version.")
     .option("--loader <loader>", "Mod loader.")
+    .option("--type <type>", "Build type: release, beta, or alpha.")
+    .option("--limit <count>", "Maximum build count.", "10")
+    .option("--page <page>", "Build page.", "1")
     .option("--json", "Write machine-readable JSON.")
     .action(async (project: string, options: unknown) => {
       const parsedOptions = viewOptionsSchema.parse(options);
 
       try {
-        if (parsedOptions.version) {
-          const listed = await listProjectVersions({
-            project,
-            gameVersion: parsedOptions.version,
-            loader: parsedOptions.loader,
-          });
-
-          if (parsedOptions.json) {
-            writeJson(listed);
-            return;
-          }
-
-          process.stdout.write(
-            formatVersionTable(listed.project, listed.versions)
-          );
-          return;
-        }
-
-        const resolved = await resolveProject(project);
-        const attribution = await getProjectAttribution(resolved.project);
+        const resolved = await resolve(project);
+        const attribution = await attributionFor(resolved.project);
+        const listed = await versionsFor({
+          project: resolved.project.id,
+          gameVersion: parsedOptions.version,
+          loader: parsedOptions.loader,
+          limit: parsedOptions.limit,
+          offset: offsetFor(parsedOptions.page, parsedOptions.limit),
+          type: parsedOptions.type,
+        });
 
         if (parsedOptions.json) {
-          writeJson({ ...resolved, attribution });
+          printJson({ ...resolved, attribution, builds: listed.versions });
           return;
         }
 
-        process.stdout.write(formatProjectView(resolved.project, attribution));
+        process.stdout.write(
+          projectCard(resolved.project, attribution) +
+            "\n" +
+            versionTable(listed.project, listed.versions, {
+              gameVersion: parsedOptions.version,
+              limit: parsedOptions.limit,
+              loader: parsedOptions.loader,
+              page: parsedOptions.page,
+            })
+        );
       } catch (error) {
-        renderError(error, parsedOptions.json);
+        showError(error, parsedOptions.json);
       }
     });
 }

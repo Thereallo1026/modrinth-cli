@@ -1,14 +1,14 @@
 import { toCliError } from "@/lib/errors";
 
-export function writeJson(value: unknown) {
+export function printJson(value: unknown) {
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
 }
 
-export function renderError(error: unknown, json: boolean) {
+export function showError(error: unknown, json: boolean) {
   const cliError = toCliError(error);
 
   if (json) {
-    writeJson({
+    printJson({
       error: {
         code: cliError.code,
         message: cliError.message,

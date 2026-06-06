@@ -1,15 +1,17 @@
 import type { Command } from "commander";
 import { z } from "zod";
-import { searchProjects } from "@/modrinth/projects";
-import { renderError, writeJson } from "@/output/json";
-import { formatSearchTable } from "@/output/terminal";
+import { offsetFor, pageOptions } from "@/lib/page";
+import { search } from "@/modrinth/projects";
+import { printJson, showError } from "@/output/json";
+import { searchTable } from "@/output/terminal";
 
 const searchOptionsSchema = z.object({
-  type: z.string().default("mod"),
-  loader: z.string().optional(),
-  version: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(10),
   json: z.boolean().default(false),
+  loader: z.string().optional(),
+  limit: pageOptions.limit,
+  page: pageOptions.page,
+  type: z.string().default("mod"),
+  version: z.string().optional(),
 });
 
 export function registerSearchCommand(program: Command) {
@@ -21,27 +23,35 @@ export function registerSearchCommand(program: Command) {
     .option("--loader <loader>", "Mod loader.")
     .option("--version <version>", "Minecraft game version.")
     .option("--limit <count>", "Maximum result count.", "10")
+    .option("--page <page>", "Result page.", "1")
     .option("--json", "Write machine-readable JSON.")
     .action(async (query: string, options: unknown) => {
       const parsedOptions = searchOptionsSchema.parse(options);
 
       try {
-        const results = await searchProjects({
+        const results = await search({
           query,
           projectType: parsedOptions.type,
           loader: parsedOptions.loader,
           gameVersion: parsedOptions.version,
           limit: parsedOptions.limit,
+          offset: offsetFor(parsedOptions.page, parsedOptions.limit),
         });
 
         if (parsedOptions.json) {
-          writeJson(results);
+          printJson(results);
           return;
         }
 
-        process.stdout.write(formatSearchTable(results.hits));
+        process.stdout.write(
+          searchTable(results.hits, {
+            limit: parsedOptions.limit,
+            page: parsedOptions.page,
+            total: results.total_hits,
+          })
+        );
       } catch (error) {
-        renderError(error, parsedOptions.json);
+        showError(error, parsedOptions.json);
       }
     });
 }
