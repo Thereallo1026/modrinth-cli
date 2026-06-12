@@ -16,17 +16,27 @@ This repository contains a CLI project for Modrinth. Treat it as production code
 
 - `src/commands` hosts top-level CLI commands.
 - `src/components` hosts terminal UI components.
-  - `src/components/install` hosts install-specific components like cards, package status lines, and installed summaries.
-  - `src/components/search` hosts search result components.
-  - `src/components/project` hosts project display components.
-  - `src/components/version` hosts version/build table components.
-  - `src/components/user` hosts user and organization display components.
+  - `src/components/install/card.ts` owns the install project card.
+  - `src/components/install/headers.ts` owns install-specific header lines, such as packwiz parse timing.
+  - `src/components/install/installed.ts` owns installed mod list and install summary output.
+  - `src/components/install/status.ts` owns one-line package progress output.
+  - `src/components/search/results.ts` owns search result tables.
+  - `src/components/project/card.ts` owns project summary cards.
+  - `src/components/version/table.ts` owns version/build tables.
+  - `src/components/user/profile.ts` owns user and organization display.
   - `src/components/tui` hosts shared terminal UI helpers used across components.
 - `src/modrinth` hosts code that works with `@modrinth/api-client` and Modrinth API concepts.
 - `src/packwiz` hosts packwiz pack parsing, safe path resolution, metadata interpretation, and pack install planning.
 - `src/output` hosts machine-readable JSON output and CLI error formatting.
 - `src/lib` hosts helpers and functions reused across multiple commands or modules.
+  - `src/lib/concurrency.ts` owns bounded concurrent task execution.
+  - `src/lib/download-file.ts` owns streaming downloads, hash verification, and atomic file writes.
+  - `src/lib/errors.ts` owns shared error classes.
+  - `src/lib/minecraft-versions.ts` owns dynamic Mojang version loading and caching.
+  - `src/lib/page.ts` owns pagination math.
+  - `src/lib/paths.ts` owns output path helpers.
 - `src/tests` hosts tests.
+- `temp/packwiz-manual-test` hosts the manual large packwiz fixture.
 - Keep command names flat. Prefer `modrinth search`, `modrinth install`, `modrinth view`, and `modrinth user`.
 - Avoid nested action commands like `version get` and `version list`.
 
@@ -35,11 +45,12 @@ This repository contains a CLI project for Modrinth. Treat it as production code
 - `src/components/tui/style.ts` owns ANSI styling primitives, color helpers, badges, and visible-width measurement.
 - `src/components/tui/table.ts` owns plain terminal table rendering and width padding.
 - `src/components/tui/page.ts` owns pagination footer badges.
+- `src/components/tui/header.ts` owns the shared command header.
 - `src/components/tui/loader-list.ts` owns loader name and badge rendering.
 - `src/components/tui/loaders.ts` owns the known Modrinth loader metadata.
-- `src/components/tui/project-cell.ts` owns the shared bold-title plus slug badge cell.
+- `src/components/tui/project-cell.ts` owns the shared bold-title plus gray slug cell.
 - `src/components/tui/format.ts` owns shared number formatters.
-- `src/components/tui/versions.ts` owns Minecraft version loading and range formatting.
+- `src/components/tui/versions.ts` owns Minecraft version range formatting.
 - Build command-specific display from small components in `src/components/<domain>/`.
 - Keep raw ANSI escape codes inside `src/components/tui/style.ts`.
 - Keep command files focused on orchestration, data fetching, and choosing output mode.
