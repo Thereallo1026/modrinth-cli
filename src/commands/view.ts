@@ -1,10 +1,12 @@
 import type { Command } from "commander";
 import { z } from "zod";
+
+import { projectCard } from "@/components/project/card";
+import { versionTable } from "@/components/version/table";
 import { offsetFor, pageOptions } from "@/lib/page";
 import { attributionFor, resolve } from "@/modrinth/projects";
 import { versionsFor } from "@/modrinth/versions";
 import { printJson, showError } from "@/output/json";
-import { projectCard, versionTable } from "@/output/terminal";
 
 const viewOptionsSchema = z.object({
   json: z.boolean().default(false),

@@ -4,22 +4,45 @@ This repository contains a CLI project for Modrinth. Treat it as production code
 
 - Keep track of every change you make. Check `git status --short` before edits, after edits, and before the final response.
 - Keep the working tree readable. Place source code under `src/`, tests under `src/tests`, generated output under `dist/`, and scratch work outside the repo.
-- Write optimized code. Favor direct data flow, bounded allocations, streaming I/O for downloads, and explicit error handling.
+- Write optimized code. Favor direct data flow, bounded allocations, streaming I/O for installs, and explicit error handling.
 - Use Bun for commands, scripts, tests, and builds.
 - Keep the CLI authless. Use public Modrinth endpoints and public data only.
 - Keep package dependencies small and purposeful.
 - Write code as if this repo will grow into many commands, contributors, and tests.
 - Treat `src/` as the working directory for code. Create feature folders there as the command surface grows.
+- Prefer `@/` imports for code inside `src/`. Use `../` only when importing files outside `src`, such as `package.json`.
 
 ## Project Structure
 
 - `src/commands` hosts top-level CLI commands.
+- `src/components` hosts terminal UI components.
+  - `src/components/install` hosts install-specific components like cards, package status lines, and installed summaries.
+  - `src/components/search` hosts search result components.
+  - `src/components/project` hosts project display components.
+  - `src/components/version` hosts version/build table components.
+  - `src/components/user` hosts user and organization display components.
+  - `src/components/tui` hosts shared terminal UI helpers used across components.
 - `src/modrinth` hosts code that works with `@modrinth/api-client` and Modrinth API concepts.
-- `src/output` hosts output formatting, CLI error formatting, and machine-readable response details.
+- `src/packwiz` hosts packwiz pack parsing, safe path resolution, metadata interpretation, and pack install planning.
+- `src/output` hosts machine-readable JSON output and CLI error formatting.
 - `src/lib` hosts helpers and functions reused across multiple commands or modules.
 - `src/tests` hosts tests.
-- Keep command names flat. Prefer `modrinth search`, `modrinth download`, `modrinth view`, and `modrinth user`.
+- Keep command names flat. Prefer `modrinth search`, `modrinth install`, `modrinth view`, and `modrinth user`.
 - Avoid nested action commands like `version get` and `version list`.
+
+## TUI Components
+
+- `src/components/tui/style.ts` owns ANSI styling primitives, color helpers, badges, and visible-width measurement.
+- `src/components/tui/table.ts` owns plain terminal table rendering and width padding.
+- `src/components/tui/page.ts` owns pagination footer badges.
+- `src/components/tui/loader-list.ts` owns loader name and badge rendering.
+- `src/components/tui/loaders.ts` owns the known Modrinth loader metadata.
+- `src/components/tui/project-cell.ts` owns the shared bold-title plus slug badge cell.
+- `src/components/tui/format.ts` owns shared number formatters.
+- `src/components/tui/versions.ts` owns Minecraft version loading and range formatting.
+- Build command-specific display from small components in `src/components/<domain>/`.
+- Keep raw ANSI escape codes inside `src/components/tui/style.ts`.
+- Keep command files focused on orchestration, data fetching, and choosing output mode.
 
 ## Testing
 
@@ -28,6 +51,14 @@ This repository contains a CLI project for Modrinth. Treat it as production code
 - Put every test under `src/tests`.
 - Prefer tests for command contracts, error shapes, project resolution, version selection, and file-download safety.
 - Keep tests fast and deterministic. Use live Modrinth calls only for explicit smoke checks.
+
+## Checks And Formatting
+
+- Run `bun check` to check linter and formatter issues.
+- Run `bun fix` before manually fixing linter or formatter issues.
+- Run `bun tsc` after TypeScript or API shape changes.
+- Run `bun test` after behavior changes or test changes.
+- Use manual edits for logic changes after automated formatting has done the mechanical cleanup.
 
 ## Function Design
 

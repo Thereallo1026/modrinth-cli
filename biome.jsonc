@@ -1,7 +1,32 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["src/**/*.ts", "!package.json", "!bun.lock"]
+    "includes": ["src/**/*.ts", "!package.json", "!bun.lock", "!temp"]
   },
-  "extends": ["ultracite/biome/core", "ultracite/biome/vitest"]
+  "extends": ["ultracite/biome/core", "ultracite/biome/vitest"],
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [
+              ":NODE:",
+              ":BLANK_LINE:",
+              ":PACKAGE:",
+              ":BLANK_LINE:",
+              "@/components/**",
+              "@/commands/**",
+              "@/lib/**",
+              "@/modrinth/**",
+              "@/packwiz/**",
+              "@/output/**",
+              ":BLANK_LINE:",
+              ":PATH:"
+            ]
+          }
+        }
+      }
+    }
+  }
 }

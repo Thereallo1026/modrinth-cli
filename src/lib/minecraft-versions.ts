@@ -1,7 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+
 import { z } from "zod";
+
 import { USER_AGENT } from "@/modrinth/client";
 
 const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;

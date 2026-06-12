@@ -1,5 +1,7 @@
 import type { Labrinth } from "@modrinth/api-client";
+
 import { CliError } from "@/lib/errors";
+
 import { modrinthClient } from "./client";
 import { type Project, resolve } from "./projects";
 
@@ -18,6 +20,18 @@ interface ListProjectVersionsInput {
   offset?: number;
   project: string;
   type?: Labrinth.Versions.v2.VersionType;
+}
+
+interface DownloadConstraints {
+  gameVersion?: string;
+  loader?: string;
+  type?: Labrinth.Versions.v2.VersionType;
+}
+
+export interface DownloadTarget {
+  file: Labrinth.Versions.v2.VersionFile;
+  project: ReturnType<typeof projectSummary>;
+  version: ReturnType<typeof versionSummary>;
 }
 
 export async function versionsFor(input: ListProjectVersionsInput) {
@@ -57,7 +71,140 @@ export async function pickDownload(input: FindDownloadTargetInput) {
     project: listed.project,
     version: versionSummary(version),
     file,
+    fullVersion: version,
   };
+}
+
+async function pickDependencyVersion(
+  dep: Labrinth.Versions.v2.Dependency,
+  projectId: string | undefined,
+  constraints: DownloadConstraints,
+  warn: (message: string) => void
+): Promise<{
+  depVersion: Labrinth.Versions.v2.Version;
+  target: DownloadTarget;
+} | null> {
+  let depVersion: Labrinth.Versions.v2.Version;
+
+  if ("version_id" in dep && dep.version_id) {
+    depVersion = await modrinthClient.labrinth.versions_v2.getVersion(
+      dep.version_id
+    );
+  } else if (projectId) {
+    const listed = await modrinthClient.labrinth.versions_v2.getProjectVersions(
+      projectId,
+      {
+        game_versions: constraints.gameVersion
+          ? [constraints.gameVersion]
+          : undefined,
+        loaders: constraints.loader ? [constraints.loader] : undefined,
+        include_changelog: false,
+        limit: 100,
+        offset: 0,
+      }
+    );
+    const filtered = constraints.type
+      ? listed.filter((v) => v.version_type === constraints.type)
+      : listed;
+    depVersion = chooseVersion(filtered);
+  } else {
+    warn("Skipping dependency with no project_id or version_id.");
+    return null;
+  }
+
+  const depResolved = await resolve(depVersion.project_id);
+  const target: DownloadTarget = {
+    project: projectSummary(depResolved.project),
+    version: versionSummary(depVersion),
+    file: chooseFile(depVersion),
+  };
+
+  return { depVersion, target };
+}
+
+interface WalkContext {
+  constraints: DownloadConstraints;
+  results: DownloadTarget[];
+  seen: Set<string>;
+  warn: (message: string) => void;
+}
+
+async function walkDep(
+  dep: Labrinth.Versions.v2.Dependency,
+  ctx: WalkContext
+): Promise<void> {
+  const projectId = "project_id" in dep ? dep.project_id : undefined;
+
+  if (projectId && ctx.seen.has(projectId)) {
+    return;
+  }
+
+  if (projectId) {
+    ctx.seen.add(projectId);
+  }
+
+  try {
+    const resolved = await pickDependencyVersion(
+      dep,
+      projectId,
+      ctx.constraints,
+      ctx.warn
+    );
+
+    if (!resolved) {
+      return;
+    }
+
+    const resolvedProjectId = resolved.depVersion.project_id;
+
+    if (resolvedProjectId !== projectId) {
+      if (ctx.seen.has(resolvedProjectId)) {
+        return;
+      }
+
+      ctx.seen.add(resolvedProjectId);
+    }
+
+    ctx.results.push(resolved.target);
+    await walkVersion(resolved.depVersion, ctx);
+  } catch (error) {
+    const label =
+      "version_id" in dep && dep.version_id
+        ? dep.version_id
+        : (projectId ?? "unknown");
+    ctx.warn(
+      `Could not resolve dependency "${label}": ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
+
+async function walkVersion(
+  version: Labrinth.Versions.v2.Version,
+  ctx: WalkContext
+): Promise<void> {
+  const required = version.dependencies.filter(
+    (dep) => dep.dependency_type === "required"
+  );
+
+  for (const dep of required) {
+    await walkDep(dep, ctx);
+  }
+}
+
+export async function resolveDependencies(
+  rootVersion: Labrinth.Versions.v2.Version,
+  constraints: DownloadConstraints,
+  warn: (message: string) => void
+): Promise<DownloadTarget[]> {
+  const ctx: WalkContext = {
+    constraints,
+    results: [],
+    seen: new Set<string>([rootVersion.project_id]),
+    warn,
+  };
+
+  await walkVersion(rootVersion, ctx);
+  return ctx.results;
 }
 
 function chooseVersion(

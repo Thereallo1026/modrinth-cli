@@ -1,5 +1,7 @@
 import type { Labrinth } from "@modrinth/api-client";
+
 import { CliError } from "@/lib/errors";
+
 import { modrinthClient } from "./client";
 
 interface SearchProjectsInput {

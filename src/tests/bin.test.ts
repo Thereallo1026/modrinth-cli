@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+
 import { describe, expect, test } from "vitest";
 
 const TEST_DIRECTORY_PATTERN = /\/src\/tests$/;

@@ -1,9 +1,10 @@
 import type { Command } from "commander";
 import { z } from "zod";
+
+import { searchResults } from "@/components/search/results";
 import { offsetFor, pageOptions } from "@/lib/page";
 import { search } from "@/modrinth/projects";
 import { printJson, showError } from "@/output/json";
-import { searchTable } from "@/output/terminal";
 
 const searchOptionsSchema = z.object({
   json: z.boolean().default(false),
@@ -44,7 +45,7 @@ export function registerSearchCommand(program: Command) {
         }
 
         process.stdout.write(
-          searchTable(results.hits, {
+          searchResults(results.hits, {
             limit: parsedOptions.limit,
             page: parsedOptions.page,
             total: results.total_hits,

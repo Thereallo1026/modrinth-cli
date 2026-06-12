@@ -1,9 +1,10 @@
 import type { Command } from "commander";
 import { z } from "zod";
+
+import { ownedProjectsTable, ownerCard } from "@/components/user/profile";
 import { offsetFor, pageOptions } from "@/lib/page";
 import { userProjects } from "@/modrinth/users";
 import { printJson, showError } from "@/output/json";
-import { ownedProjectsTable, ownerCard } from "@/output/terminal";
 
 const userOptionsSchema = z.object({
   json: z.boolean().default(false),

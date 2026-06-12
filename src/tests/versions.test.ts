@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, test, vi } from "vitest";
-import { loadMinecraftVersions, versionRange } from "../output/versions";
+
+import { loadMinecraftVersions, versionRange } from "@/components/tui/versions";
 
 vi.mock("@/lib/minecraft-versions", () => ({
   minecraftVersions: async () => [
