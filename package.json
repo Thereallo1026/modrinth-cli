@@ -1,7 +1,7 @@
 {
   "name": "modrinth-cli",
   "version": "0.2.0",
-  "description": "Modrinth for agents, scripts, and terminal-native Minecraft workflows.",
+  "description": "Minecraft mods for the terminal age.",
   "type": "module",
   "license": "MIT",
   "author": "Thereallo1026",
